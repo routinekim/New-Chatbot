@@ -3,97 +3,345 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}한세대학교 규정 챗봇{% endblock %}</title>
+  <title>{% block title %}한세대학교 규정 질의응답 시스템{% endblock %}</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    body {
-      font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
-      background: #f5f6fa;
-      color: #1a1a2e;
-      min-height: 100vh;
+    :root {
+      --primary: #003087;
+      --primary-dark: #002060;
+      --primary-light: #e8eef7;
+      --accent: #c8102e;
+      --text: #1a1a1a;
+      --text-sub: #555;
+      --border: #c8cdd6;
+      --border-light: #e0e3ea;
+      --bg: #f4f6f9;
+      --bg-table-head: #f0f3f8;
+      --success: #006a2e;
+      --error: #b00020;
     }
 
-    header {
-      background: #1a3a6b;
-      color: white;
-      padding: 14px 24px;
+    body {
+      font-family: 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ── 상단 유틸 바 ── */
+    .util-bar {
+      background: #1d2a40;
+      color: #bbc6d8;
+      font-size: 12px;
+      padding: 0 24px;
+      height: 34px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
+      gap: 1px;
+    }
+    .util-bar a {
+      color: #bbc6d8;
+      text-decoration: none;
+      padding: 0 10px;
+      line-height: 34px;
+      border-left: 1px solid #3a4660;
+    }
+    .util-bar a:first-child { border-left: none; }
+    .util-bar a:hover { color: #fff; }
+
+    /* ── 메인 헤더 ── */
+    .site-header {
+      background: var(--primary);
+      padding: 0 24px;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      border-bottom: 3px solid var(--accent);
+    }
+    .site-header .emblem {
+      width: 44px;
+      height: 44px;
+      background: rgba(255,255,255,0.15);
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .site-header .header-text { color: white; }
+    .site-header .header-text .inst-name {
+      font-size: 12px;
+      color: rgba(255,255,255,0.75);
+      letter-spacing: 0.5px;
+    }
+    .site-header .header-text .site-name {
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
     }
 
-    header h1 { font-size: 1.1rem; font-weight: 600; }
-    header nav a { color: #a8c4e8; text-decoration: none; font-size: 0.85rem; margin-left: 16px; }
-    header nav a:hover { color: white; }
-
-    main { max-width: 860px; margin: 0 auto; padding: 32px 20px; }
-
-    .card {
+    /* ── GNB (Global Navigation Bar) ── */
+    .gnb {
       background: white;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      padding: 28px;
-      margin-bottom: 20px;
+      border-bottom: 2px solid var(--primary);
+      padding: 0 24px;
+    }
+    .gnb nav {
+      display: flex;
+      gap: 0;
+      max-width: 1200px;
+    }
+    .gnb nav a {
+      display: block;
+      padding: 13px 22px;
+      text-decoration: none;
+      color: var(--text-sub);
+      font-size: 14px;
+      font-weight: 600;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .gnb nav a:hover { color: var(--primary); }
+    .gnb nav a.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* ── 본문 ── */
+    .page-wrap {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
     }
 
-    label { display: block; font-size: 0.85rem; font-weight: 600; color: #555; margin-bottom: 6px; }
+    /* 페이지 제목 영역 */
+    .page-title-bar {
+      border-left: 4px solid var(--primary);
+      padding: 4px 0 4px 14px;
+      margin-bottom: 22px;
+    }
+    .page-title-bar h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .page-title-bar p {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-top: 2px;
+    }
 
+    /* ── 섹션 박스 ── */
+    .section-box {
+      background: white;
+      border: 1px solid var(--border);
+      margin-bottom: 18px;
+    }
+    .section-box .section-head {
+      background: var(--bg-table-head);
+      border-bottom: 1px solid var(--border);
+      padding: 11px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .section-box .section-head::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 13px;
+      background: var(--primary);
+      border-radius: 1px;
+    }
+    .section-body { padding: 22px 20px; }
+
+    /* ── 폼 요소 ── */
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 5px;
+    }
+    label .required {
+      color: var(--accent);
+      margin-left: 2px;
+    }
     input[type="text"], select, textarea {
       width: 100%;
-      border: 1.5px solid #dde1ea;
-      border-radius: 7px;
-      padding: 10px 14px;
-      font-size: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 9px 12px;
+      font-size: 14px;
       font-family: inherit;
-      transition: border-color 0.2s;
+      color: var(--text);
+      background: white;
+      transition: border-color 0.15s, box-shadow 0.15s;
       outline: none;
     }
-
     input[type="text"]:focus, select:focus, textarea:focus {
-      border-color: #1a3a6b;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(0,48,135,0.12);
+    }
+    input[type="text"]::placeholder, textarea::placeholder {
+      color: #aaa;
     }
 
-    button {
-      background: #1a3a6b;
-      color: white;
+    /* ── 버튼 ── */
+    .btn {
+      display: inline-block;
       border: none;
-      border-radius: 7px;
-      padding: 11px 28px;
-      font-size: 0.95rem;
+      border-radius: 3px;
+      padding: 9px 24px;
+      font-size: 14px;
       font-family: inherit;
+      font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s;
+      text-decoration: none;
+      transition: background 0.15s;
+      line-height: 1.4;
     }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-primary:disabled { background: #8fa4c8; cursor: not-allowed; }
+    .btn-secondary {
+      background: white;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+    }
+    .btn-secondary:hover { background: var(--primary-light); }
+    .btn-danger { background: var(--error); color: white; }
+    .btn-danger:hover { background: #8c0018; }
+    .btn-sm { padding: 5px 14px; font-size: 12px; }
 
-    button:hover { background: #122d56; }
-    button:disabled { background: #9aaac4; cursor: not-allowed; }
+    /* ── 테이블 ── */
+    .gov-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .gov-table th {
+      background: var(--bg-table-head);
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      font-weight: 700;
+      color: var(--text);
+      text-align: center;
+    }
+    .gov-table td {
+      border: 1px solid var(--border-light);
+      padding: 10px 12px;
+      vertical-align: middle;
+    }
+    .gov-table tbody tr:hover td { background: #f8faff; }
+    .gov-table .center { text-align: center; }
 
+    /* ── 태그 ── */
     .tag {
       display: inline-block;
-      background: #e8f0fb;
-      color: #1a3a6b;
-      border-radius: 4px;
+      border: 1px solid #b0bee0;
+      background: var(--primary-light);
+      color: var(--primary);
+      border-radius: 2px;
       padding: 2px 8px;
-      font-size: 0.78rem;
-      font-weight: 600;
+      font-size: 11px;
+      font-weight: 700;
     }
 
-    .msg-error { color: #c0392b; font-size: 0.85rem; margin-top: 8px; }
-    .msg-success { color: #27ae60; font-size: 0.85rem; margin-top: 8px; }
+    /* ── 안내 메시지 ── */
+    .msg-error { color: var(--error); font-size: 13px; margin-top: 6px; }
+    .msg-success { color: var(--success); font-size: 13px; margin-top: 6px; }
+    .msg-info { color: var(--text-sub); font-size: 13px; margin-top: 6px; }
+
+    /* ── 빈 상태 ── */
+    .empty-row td {
+      text-align: center;
+      color: #aaa;
+      padding: 32px 0;
+      font-size: 13px;
+    }
+
+    /* ── 푸터 ── */
+    footer {
+      background: #1d2a40;
+      color: #8a9bb8;
+      font-size: 12px;
+      padding: 20px 24px;
+      border-top: 3px solid var(--primary);
+    }
+    footer .footer-inner {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+    footer .footer-inst { font-weight: 700; color: #b8c4d8; margin-bottom: 4px; }
+    footer .footer-links { display: flex; gap: 1px; }
+    footer .footer-links a {
+      color: #8a9bb8;
+      text-decoration: none;
+      padding: 0 10px;
+      border-left: 1px solid #3a4660;
+    }
+    footer .footer-links a:first-child { border-left: none; }
+    footer .footer-links a:hover { color: #fff; }
   </style>
   {% block head %}{% endblock %}
 </head>
 <body>
-  <header>
-    <h1>🎓 한세대학교 규정 챗봇</h1>
-    <nav>
-      <a href="/">학생 질문</a>
-      <a href="/admin">관리자</a>
-    </nav>
+
+  <!-- 상단 유틸 바 -->
+  <div class="util-bar">
+    <a href="/">학생 질문</a>
+    <a href="/admin">관리자 로그인</a>
+  </div>
+
+  <!-- 메인 헤더 -->
+  <header class="site-header">
+    <div class="emblem">&#127979;</div>
+    <div class="header-text">
+      <div class="inst-name">HANSEI UNIVERSITY</div>
+      <div class="site-name">규정 질의응답 시스템</div>
+    </div>
   </header>
-  <main>
+
+  <!-- GNB -->
+  <div class="gnb">
+    <nav>
+      <a href="/" {% if request.url.path == "/" %}class="active"{% endif %}>학생 질의</a>
+      <a href="/admin" {% if request.url.path.startswith("/admin") %}class="active"{% endif %}>관리자</a>
+    </nav>
+  </div>
+
+  <!-- 본문 -->
+  <div class="page-wrap">
     {% block content %}{% endblock %}
-  </main>
+  </div>
+
+  <!-- 푸터 -->
+  <footer>
+    <div class="footer-inner">
+      <div>
+        <div class="footer-inst">한세대학교 규정 질의응답 시스템</div>
+        <div>Copyright &copy; Hansei University. All rights reserved.</div>
+      </div>
+      <div class="footer-links">
+        <a href="https://www.hansei.ac.kr" target="_blank">대학 홈페이지</a>
+        <a href="/">이용안내</a>
+      </div>
+    </div>
+  </footer>
+
 </body>
 </html>
