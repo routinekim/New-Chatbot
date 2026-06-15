@@ -59,7 +59,7 @@ Supabase pgvector + Solar Embedding + Gemini + Hybrid Search + FastAPI
 
 | 컴포넌트 | 선택 | 이유 |
 |---------|------|------|
-| LLM | Gemini 2.0 Flash (`gemini-2.0-flash`) | 저렴, 한국어 우수, 긴 컨텍스트 |
+| LLM | Gemini 2.5 Flash (`gemini-2.5-flash`) | 저렴, 한국어 우수, 긴 컨텍스트 |
 | Embedding | Upstage Solar Embedding-1-large | 한국어 RAG 최고 성능 (2025 벤치마크) |
 | Vector DB (dev) | ChromaDB (로컬, 세션 간 persist) | 개발 전용 — 프로덕션 데이터 없음 |
 | Vector DB (prod) | Supabase pgvector | 스케일, 관리 편의성 |
@@ -71,8 +71,9 @@ Supabase pgvector + Solar Embedding + Gemini + Hybrid Search + FastAPI
 
 ```
 문서 인덱싱 파이프라인:
-  PDF/Word 로드 → 전처리(OCR 필요시) → RecursiveCharacterTextSplitter
+  담당자 붙여넣기(텍스트/마크다운) → RecursiveCharacterTextSplitter
   (청크 크기: 800자, 오버랩: 200자) → Solar Embedding → Supabase pgvector 저장
+  ※ PDF/OCR 파싱 없음 — 관리자 UI에서 HTML→MD 자동 변환 후 직접 입력
 
 쿼리 파이프라인:
   사용자 질문 → Solar Embedding → EnsembleRetriever (BM25 0.5 + vector 0.5)
@@ -133,7 +134,8 @@ GET  /                → 학생 쿼리 UI (공개, 인증 없음)
 POST /api/query       → RAG 쿼리 API (공개)
 
 GET  /admin           → 관리자 업로드 UI (인증 필요)
-POST /admin/ingest    → PDF 업로드 + 인덱싱 (인증 필요)
+POST /admin/ingest    → 문서 등록 + 인덱싱 (인증 필요)
+POST /admin/cleanup   → 표 마크다운 정리 (LLM 보조, 인증 필요)
 GET  /admin/documents → 업로드된 문서 목록 (인증 필요)
 DELETE /admin/documents/{id} → 문서 삭제 + 청크 제거 (인증 필요)
 ```
@@ -144,30 +146,63 @@ DELETE /admin/documents/{id} → 문서 삭제 + 청크 제거 (인증 필요)
 ### 프론트엔드
 
 - 학생 쿼리 페이지 (`/`): 검색창, 답변 출력, 출처 목록 — FastAPI + Jinja2
-- 관리자 업로드 페이지 (`/admin`): 파일 업로드 폼 (부서 선택, PDF 첨부), 업로드 문서 목록
+- 관리자 업로드 페이지 (`/admin`): 부서 선택 + 문서명 + 텍스트 붙여넣기 폼, 등록 문서 목록/삭제/청크 뷰어
+- 정적 파일: `static/` 디렉토리, `main.py`에서 `/static`으로 마운트
+  - `static/turndown.js`, `static/turndown-plugin-gfm.js` — CDN 대신 로컬 서빙
+  - 이유: 네트워크 환경에 따라 CDN 로드 실패 시 JS 전체가 초기화되지 않음
+
+> **Jinja2 템플릿 주의:** `<div id="...">` 요소를 참조하는 `<script>`는 반드시 해당 요소 **뒤에** 위치해야 함.
+> 요소가 스크립트보다 나중에 파싱되면 `getElementById()`가 null을 반환해
+> `addEventListener` 호출에서 TypeError 발생. (`#chunk-modal` 모달에서 실제로 발생한 버그)
 
 향후 트래픽/인터랙션 늘어나면 Next.js로 교체.
 
-### 문서 인제스트 (웹 UI + CLI)
+### 문서 인제스트 (붙여넣기 + HTML→Markdown 자동 변환, Method C)
 
-**웹 UI (담당자용):** `/admin` 페이지에서 부서 선택 + PDF 파일 첨부 → 업로드 즉시 자동 인덱싱
+**웹 UI (담당자용):** `/admin` 페이지에서 부서 선택 + 문서명 입력 + 붙여넣기 → 저장 즉시 자동 인덱싱
 
-**PDF 파싱 전략:**
-```python
-import pymupdf4llm
+```
+[담당자가 복사-붙여넣기]
+        ↓
+[paste 이벤트에서 text/html 또는 text/plain 클립보드 확인]
+  — HWP는 text/plain에 HTML 코드를 그대로 담기도 함 → 양쪽 모두 체크
+        ↓
+[<table> 포함 여부 확인 → DOM API(querySelectorAll)로 셀 추출 → 마크다운 표 변환]
+  — Turndown.js는 GFM 플러그인이 <thead> 구조를 요구해 HWP 표에서 실패함
+  — 직접 구현한 tableHtmlToMarkdown()이 <td>/<th> 무관하게 처리
+        ↓
+["✓ 표 구조 자동 변환됨" 배지 + "정리하기" 버튼 표시]
+        ↓
+[복잡한 병합 셀 → "정리하기" 버튼 → POST /admin/cleanup → Gemini로 정리]
+        ↓
+[담당자가 확인 후 "등록 및 인덱싱"]
+```
 
-def pdf_to_markdown(path: str) -> str:
-    md = pymupdf4llm.to_markdown(path)
-    # 추출 텍스트가 너무 적으면 스캔 PDF → Upstage Layout Analyzer 호출
-    if len(md.strip()) < 200:
-        return upstage_layout_parse(path)
-    return md
+**구현 세부:**
+- `static/turndown.js`, `static/turndown-plugin-gfm.js` 로컬 서빙 (CDN 의존 제거)
+- 표 변환: `tableHtmlToMarkdown()` — DOM 파싱 후 행/열 추출, 첫 행 뒤에 `|---|` 구분자 삽입
+- 비표 텍스트: Turndown.js로 일반 HTML→MD 변환 (폴백)
+
+**인제스트 요청 형식:**
+```json
+POST /admin/ingest
+{
+  "title": "2025 학생생활규정",
+  "department": "학생처",
+  "content": "제1조 (목적) 이 규정은..."
+}
+```
+
+**표 정리 요청 형식:**
+```json
+POST /admin/cleanup
+{ "content": "| 구분 | 내용 |\n| 복잡한 병합 셀... |" }
+→ { "content": "| 구분 | 내용 |\n|---|---|\n| A | B |" }
 ```
 
 **CLI (개발/일괄 인덱싱용):**
 ```bash
-uv run python -m rag.ingest --path ./docs/      # 폴더 내 PDF 전체
-uv run python -m rag.ingest --file rules.pdf --department "학생처"
+uv run python -m rag.ingest --file rules.txt --department "학생처" --title "학생생활규정"
 ```
 
 ### 에러 처리 계약
@@ -183,8 +218,8 @@ uv run python -m rag.ingest --file rules.pdf --department "학생처"
 
 1. Upstage Solar Embedding-1-large API 비용 확인 필요 (무료 tier 있는지)
    - **폴백 계획:** Upstage 무료 tier 없거나 비용 부담 시 → `upskyy/bge-m3-korean` (HuggingFace, 무료, 로컬 실행)으로 전환. 코드는 `EmbeddingProvider` 인터페이스 뒤로 숨김.
-2. 대학 문서 포맷 — 스캔 PDF가 있다면 OCR(Tesseract/Upstage Layout Analyzer) 추가 필요
-3. Gemini API key 확보 여부
+2. 담당자가 붙여넣을 텍스트 길이 제한 — textarea 최대 입력 크기 결정 필요 (서버 사이드 제한과 맞춰야 함)
+3. ~~Gemini API key 확보 여부~~ → 확보 완료 (`GEMINI_API_KEY` in `.env`)
 4. Supabase 프로젝트 생성 및 pgvector extension 활성화
 5. 문서 업데이트 주기 — **MVP 포함.** 부서 담당자가 `/admin`에서 기존 문서 삭제 + 새 PDF 재업로드로 처리. 자동 버전 관리는 MVP 이후.
 
@@ -194,7 +229,7 @@ uv run python -m rag.ingest --file rules.pdf --department "학생처"
 - [ ] 평균 응답 시간 < 3초
 - [ ] 없는 정보를 물어봤을 때 "모르겠습니다"라고 답변 (hallucination 방지)
 - [ ] 모든 답변에 출처(문서명 + 조항/페이지 + 부서) 표시
-- [ ] 관리자가 `/admin`에서 PDF 업로드 → 즉시 쿼리 가능 (인덱싱 완료 피드백 포함)
+- [ ] 관리자가 `/admin`에서 규정 텍스트 붙여넣기 → 즉시 쿼리 가능 (인덱싱 완료 피드백 포함)
 - [ ] 관리자가 업로드된 문서 목록 조회 및 삭제 가능
 
 ## Distribution Plan
@@ -206,7 +241,7 @@ uv run python -m rag.ingest --file rules.pdf --department "학생처"
 ## Dependencies
 
 - Upstage API key (Solar Embedding; 폴백: `bge-m3-korean` HuggingFace 무료)
-- Gemini API key (`gemini-2.0-flash`)
+- Gemini API key (`gemini-2.5-flash`) ← `.env`에 설정 완료
 - Supabase 프로젝트 설정:
   1. pgvector extension 활성화
   2. `documents` 테이블 생성 (id, content, metadata, embedding)
@@ -224,14 +259,14 @@ uv run python -m rag.ingest --file rules.pdf --department "학생처"
 - BM25 cold-start: 서버 시작 시 Supabase `documents` 테이블에서 청크 로드 → in-memory BM25 재구성. ~500청크, 부팅 < 1초 예상.
 - `.env` 파일: `python-dotenv` 사용, `.env.example` 커밋, `.env` gitignore
 - `ADMIN_TOKEN` 환경변수 설정 (관리자 업로드 인증용)
-- 인덱싱할 대학 규정 문서 (PDF) 수집 + 부서 담당자 목록 확인 필요
+- 담당자 목록 확인 및 부서 코드 확정 (드롭다운 선택지)
 
 ## The Assignment
 
-지금 당장: **인덱싱할 문서 5개를 수집하고 텍스트 추출 가능한지 확인하기.**
+지금 당장: **프로젝트 구조 초기화 + TDD 시작.**
 
-스캔 PDF vs 텍스트 PDF 비율이 얼마나 되는지 파악해야 OCR 필요 여부가 결정되고,
-그게 MVP 일정을 결정하는 첫 번째 병목입니다.
+텍스트 직접 입력 방식으로 변경됨 → PDF 파싱/OCR 병목 없음.
+첫 번째 실패 테스트: `ingest(title, department, content)` → 청킹 → 임베딩 → 저장.
 
 ## What I noticed about how you think
 

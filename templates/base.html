@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}한세대학교 규정 챗봇{% endblock %}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+      background: #f5f6fa;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a3a6b;
+      color: white;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 { font-size: 1.1rem; font-weight: 600; }
+    header nav a { color: #a8c4e8; text-decoration: none; font-size: 0.85rem; margin-left: 16px; }
+    header nav a:hover { color: white; }
+
+    main { max-width: 860px; margin: 0 auto; padding: 32px 20px; }
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: #555; margin-bottom: 6px; }
+
+    input[type="text"], select, textarea {
+      width: 100%;
+      border: 1.5px solid #dde1ea;
+      border-radius: 7px;
+      padding: 10px 14px;
+      font-size: 1rem;
+      font-family: inherit;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+
+    input[type="text"]:focus, select:focus, textarea:focus {
+      border-color: #1a3a6b;
+    }
+
+    button {
+      background: #1a3a6b;
+      color: white;
+      border: none;
+      border-radius: 7px;
+      padding: 11px 28px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover { background: #122d56; }
+    button:disabled { background: #9aaac4; cursor: not-allowed; }
+
+    .tag {
+      display: inline-block;
+      background: #e8f0fb;
+      color: #1a3a6b;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .msg-error { color: #c0392b; font-size: 0.85rem; margin-top: 8px; }
+    .msg-success { color: #27ae60; font-size: 0.85rem; margin-top: 8px; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header>
+    <h1>🎓 한세대학교 규정 챗봇</h1>
+    <nav>
+      <a href="/">학생 질문</a>
+      <a href="/admin">관리자</a>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

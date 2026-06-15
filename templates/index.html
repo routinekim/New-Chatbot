@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}학생 질문 — 한세대학교 규정 챗봇{% endblock %}
+
+{% block head %}
+<style>
+  .search-wrap { display: flex; gap: 10px; }
+  .search-wrap input { flex: 1; font-size: 1rem; }
+
+  #answer-box { display: none; }
+
+  .answer-text {
+    line-height: 1.8;
+    font-size: 1rem;
+    white-space: pre-wrap;
+  }
+
+  .sources-list { list-style: none; margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+
+  .source-item {
+    border-left: 3px solid #1a3a6b;
+    padding: 8px 12px;
+    background: #f5f7fc;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.88rem;
+  }
+
+  .source-item .source-title { font-weight: 600; }
+  .source-item .source-dept { color: #666; margin-left: 8px; }
+  .source-item .source-preview { color: #444; margin-top: 4px; }
+
+  .hint {
+    color: #888;
+    font-size: 0.85rem;
+    margin-top: 10px;
+  }
+
+  .spinner {
+    display: none;
+    width: 20px; height: 20px;
+    border: 3px solid #dde1ea;
+    border-top-color: #1a3a6b;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 20px auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2 style="font-size:1.2rem; margin-bottom:18px;">궁금한 규정을 질문해보세요</h2>
+  <div class="search-wrap">
+    <input type="text" id="question" placeholder="예) 휴학 신청 기한이 언제인가요?" />
+    <button id="ask-btn" onclick="askQuestion()">질문하기</button>
+  </div>
+  <p class="hint">학칙, 장학금 규정, 학사 일정 등 대학 규정에 관한 질문에 답변합니다.</p>
+</div>
+
+<div class="spinner" id="spinner"></div>
+
+<div class="card" id="answer-box">
+  <p class="answer-text" id="answer-text"></p>
+  <ul class="sources-list" id="sources-list"></ul>
+</div>
+
+<script>
+async function askQuestion() {
+  const question = document.getElementById('question').value.trim();
+  if (!question) return;
+
+  const btn = document.getElementById('ask-btn');
+  const spinner = document.getElementById('spinner');
+  const answerBox = document.getElementById('answer-box');
+
+  btn.disabled = true;
+  spinner.style.display = 'block';
+  answerBox.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question }),
+    });
+    const data = await res.json();
+
+    document.getElementById('answer-text').textContent = data.answer;
+
+    const sourcesList = document.getElementById('sources-list');
+    sourcesList.innerHTML = '';
+    if (data.sources && data.sources.length > 0) {
+      data.sources.forEach(s => {
+        const li = document.createElement('li');
+        li.className = 'source-item';
+        li.innerHTML = `
+          <span class="source-title">${s.title ?? '출처'}</span>
+          <span class="source-dept tag">${s.department ?? ''}</span>
+          <div class="source-preview">${s.preview ?? ''}</div>
+        `;
+        sourcesList.appendChild(li);
+      });
+    }
+
+    answerBox.style.display = 'block';
+  } catch (e) {
+    document.getElementById('answer-text').textContent = '오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+    answerBox.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+  }
+}
+
+document.getElementById('question').addEventListener('keydown', e => {
+  if (e.key === 'Enter') askQuestion();
+});
+</script>
+{% endblock %}
