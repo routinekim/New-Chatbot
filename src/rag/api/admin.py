@@ -13,6 +13,7 @@ templates = Jinja2Templates(directory="templates")
 security = HTTPBasic()
 
 DEPARTMENTS = ["학생처", "교무처", "입학처", "총무처", "도서관", "기타"]
+DOC_TYPES = ["규정", "지침", "업무매뉴얼", "결재공문/기안문", "계획서/결과보고서", "회의록"]
 
 
 def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
@@ -25,8 +26,8 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
 
 class IngestRequest(BaseModel):
     title: str
-    department: str
     content: str
+    doc_type: str | None = None
 
 
 class IngestResponse(BaseModel):
@@ -45,7 +46,7 @@ class CleanupResponse(BaseModel):
 @router.get("/", response_class=HTMLResponse)
 async def admin_page(request: Request, _: str = Depends(verify_admin)):
     return templates.TemplateResponse(
-        request, "admin.html", {"departments": DEPARTMENTS}
+        request, "admin.html", {"doc_types": DOC_TYPES}
     )
 
 
@@ -54,7 +55,7 @@ async def ingest_document(req: IngestRequest, _: str = Depends(verify_admin)):
     from src.rag.ingest import ingest
     from src.rag.store import get_store
 
-    chunks = ingest(req.title, req.department, req.content)
+    chunks = ingest(req.title, req.content, doc_type=req.doc_type)
     if not chunks:
         raise HTTPException(status_code=400, detail="내용이 비어 있습니다.")
 

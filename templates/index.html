@@ -19,11 +19,30 @@
   }
   .search-row input:focus { z-index: 1; position: relative; }
   .search-row .btn-primary {
-    border-radius: 0 3px 3px 0;
+    border-radius: 0;
     padding: 11px 28px;
     font-size: 15px;
     white-space: nowrap;
   }
+  .btn-mic {
+    border-radius: 0 3px 3px 0;
+    padding: 11px 14px;
+    font-size: 17px;
+    background: white;
+    border: 1px solid var(--border);
+    border-left: none;
+    cursor: pointer;
+    color: var(--text-sub);
+    transition: background 0.12s, color 0.12s;
+    line-height: 1;
+  }
+  .btn-mic:hover { background: var(--primary-light); color: var(--primary); }
+  .btn-mic.listening {
+    background: #ffeaea;
+    color: #c0392b;
+    animation: pulse 0.8s ease-in-out infinite alternate;
+  }
+  @keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } }
 
   .search-guide {
     margin-top: 10px;
@@ -49,6 +68,39 @@
     transition: background 0.12s;
   }
   .search-guide ul li:hover { background: #d6e4f5; }
+
+  /* 문서 종류 필터 */
+  .doctype-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .doctype-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-sub);
+    white-space: nowrap;
+    min-width: 54px;
+  }
+  .doctype-select {
+    font-size: 13px;
+    padding: 7px 32px 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23667'/%3E%3C/svg%3E") no-repeat right 10px center;
+    background-size: 10px 6px;
+    color: var(--text);
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 180px;
+  }
+  .doctype-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px var(--primary-light);
+  }
 
   /* 로딩 */
   .loading-row {
@@ -86,13 +138,30 @@
   .answer-text {
     font-size: 14px;
     line-height: 1.9;
-    white-space: pre-wrap;
     color: var(--text);
     border-left: 3px solid var(--primary);
     padding: 14px 16px;
     background: #fafbff;
     border-radius: 0 3px 3px 0;
   }
+  .answer-text p { margin: 0 0 10px; }
+  .answer-text p:last-child { margin-bottom: 0; }
+  .answer-text strong { font-weight: 700; color: var(--primary-dark, #1a3a6b); }
+  .answer-text ul, .answer-text ol { margin: 6px 0 10px 20px; padding: 0; }
+  .answer-text li { margin-bottom: 4px; }
+  .answer-text h1, .answer-text h2, .answer-text h3 {
+    font-size: 14px; font-weight: 700; margin: 12px 0 6px;
+  }
+  .answer-text code {
+    background: #eef2fa; padding: 1px 5px; border-radius: 2px; font-size: 12px;
+  }
+  .answer-text table {
+    border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 13px;
+  }
+  .answer-text th, .answer-text td {
+    border: 1px solid var(--border-light); padding: 6px 10px; text-align: left;
+  }
+  .answer-text th { background: var(--bg-table-head); font-weight: 700; }
 
   /* 출처 */
   .sources-title {
@@ -124,6 +193,17 @@
     font-weight: 700;
     color: var(--text);
   }
+  .source-item .source-relevance {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .relevance-high { color: #1a7a3c; background: #e6f4ec; border: 1px solid #b0d8bc; }
+  .relevance-mid  { color: #7a5a00; background: #fdf4e0; border: 1px solid #e0c878; }
+  .relevance-low  { color: #888;    background: #f4f4f4;  border: 1px solid #ddd;    }
   .source-item .source-preview {
     font-size: 12px;
     color: var(--text-sub);
@@ -150,6 +230,7 @@
     margin-top: 1px;
   }
 </style>
+<script src="/static/marked.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -168,9 +249,22 @@
 <div class="section-box">
   <div class="section-head">규정 검색</div>
   <div class="section-body">
+    <div class="doctype-row">
+      <label class="doctype-label" for="doc-type">문서 종류</label>
+      <select id="doc-type" class="doctype-select">
+        <option value="">전체</option>
+        <option value="규정">규정</option>
+        <option value="지침">지침</option>
+        <option value="업무매뉴얼">업무매뉴얼</option>
+        <option value="결재공문/기안문">결재공문/기안문</option>
+        <option value="계획서/결과보고서">계획서/결과보고서</option>
+        <option value="회의록">회의록</option>
+      </select>
+    </div>
     <div class="search-row">
       <input type="text" id="question" placeholder="예) 휴학 신청 기한이 언제인가요?" autocomplete="off" />
       <button class="btn btn-primary" id="ask-btn" onclick="askQuestion()">검색</button>
+      <button class="btn-mic" id="mic-btn" onclick="toggleVoice()" title="음성으로 질문">&#127908;</button>
     </div>
     <div class="search-guide">
       질문 예시를 클릭해 바로 검색해보세요.
@@ -211,6 +305,8 @@ function setQuestion(q) {
   askQuestion();
 }
 
+let isVoiceQuery = false;
+
 async function askQuestion() {
   const question = document.getElementById('question').value.trim();
   if (!question) {
@@ -226,28 +322,37 @@ async function askQuestion() {
   loadingBox.style.display = 'block';
   answerBox.style.display = 'none';
 
+  const voice = isVoiceQuery;
+  isVoiceQuery = false;
+  const docType = document.getElementById('doc-type').value || null;
+
   try {
     const res = await fetch('/api/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, voice, doc_type: docType }),
     });
     const data = await res.json();
 
-    document.getElementById('answer-text').textContent = data.answer;
+    document.getElementById('answer-text').innerHTML = marked.parse(data.answer);
+
 
     const sourcesContainer = document.getElementById('sources-container');
     const sourcesList = document.getElementById('sources-list');
     sourcesList.innerHTML = '';
 
-    if (data.sources && data.sources.length > 0) {
-      data.sources.forEach(s => {
+    const filteredSources = (data.sources || []).filter(s => s.relevance >= 60);
+    if (filteredSources.length > 0) {
+      filteredSources.forEach(s => {
         const div = document.createElement('div');
         div.className = 'source-item';
         div.innerHTML = `
           <div class="source-head">
             <span class="source-title">${s.title ?? '출처'}</span>
-            <span class="tag">${s.department ?? ''}</span>
+            ${s.doc_type ? `<span class="tag">${s.doc_type}</span>` : ''}
+            <span class="source-relevance ${s.relevance >= 80 ? 'relevance-high' : 'relevance-mid'}">
+              유사도 ${s.relevance ?? 0}%
+            </span>
           </div>
           <div class="source-preview">${s.preview ?? ''}</div>
         `;
@@ -260,7 +365,7 @@ async function askQuestion() {
 
     answerBox.style.display = 'block';
   } catch (e) {
-    document.getElementById('answer-text').textContent = '오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+    document.getElementById('answer-text').innerHTML = '오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
     document.getElementById('sources-container').style.display = 'none';
     answerBox.style.display = 'block';
   } finally {
@@ -272,5 +377,49 @@ async function askQuestion() {
 document.getElementById('question').addEventListener('keydown', e => {
   if (e.key === 'Enter') askQuestion();
 });
+
+// 음성 입력
+let recognition = null;
+
+function toggleVoice() {
+  if (recognition) {
+    recognition.stop();
+    return;
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert('이 브라우저는 음성 입력을 지원하지 않습니다.\nChrome 또는 Edge를 사용해주세요.');
+    return;
+  }
+
+  recognition = new SpeechRecognition();
+  recognition.lang = 'ko-KR';
+  recognition.interimResults = false;
+
+  const micBtn = document.getElementById('mic-btn');
+  micBtn.classList.add('listening');
+  micBtn.title = '듣는 중... (클릭하면 취소)';
+
+  recognition.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    document.getElementById('question').value = transcript;
+    isVoiceQuery = true;
+    askQuestion();
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error !== 'aborted') alert('음성 인식 오류: ' + e.error);
+  };
+
+  recognition.onend = () => {
+    recognition = null;
+    micBtn.classList.remove('listening');
+    micBtn.title = '음성으로 질문';
+  };
+
+  recognition.start();
+}
+
 </script>
 {% endblock %}

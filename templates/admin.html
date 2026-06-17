@@ -145,19 +145,22 @@
   <div class="section-head">규정 문서 등록</div>
   <div class="section-body">
 
-    <div class="form-inline">
-      <div class="form-row">
-        <label for="title">문서명 <span class="required">*</span></label>
-        <input type="text" id="title" placeholder="예) 2025 학생생활규정" />
-      </div>
-      <div class="form-row">
-        <label for="department">담당 부서 <span class="required">*</span></label>
-        <select id="department">
-          {% for dept in departments %}
-          <option value="{{ dept }}">{{ dept }}</option>
-          {% endfor %}
-        </select>
-      </div>
+    <div class="form-row">
+      <label for="doc-type">문서 종류</label>
+      <select id="doc-type">
+        <option value="">선택 안 함</option>
+        <option value="규정">규정</option>
+        <option value="지침">지침</option>
+        <option value="업무매뉴얼">업무매뉴얼</option>
+        <option value="결재공문/기안문">결재공문/기안문</option>
+        <option value="계획서/결과보고서">계획서/결과보고서</option>
+        <option value="회의록">회의록</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label for="title">문서명 <span class="required">*</span></label>
+      <input type="text" id="title" placeholder="예) 2025 학생생활규정" />
     </div>
 
     <div class="form-row">
@@ -188,10 +191,10 @@
     <table class="gov-table" id="doc-table">
       <thead>
         <tr>
-          <th style="width:40%">문서명</th>
-          <th style="width:18%">담당 부서</th>
+          <th style="width:38%">문서명</th>
+          <th style="width:18%">문서 종류</th>
           <th style="width:10%" class="center">청크 수</th>
-          <th style="width:18%" class="center">등록일</th>
+          <th style="width:20%" class="center">등록일</th>
           <th style="width:14%" class="center">관리</th>
         </tr>
       </thead>
@@ -312,7 +315,7 @@
 
   async function submitDocument() {
     const title = document.getElementById('title').value.trim();
-    const department = document.getElementById('department').value;
+    const docType = document.getElementById('doc-type').value || null;
     const content = contentEl.value.trim();
     const statusEl = document.getElementById('status-msg');
 
@@ -334,7 +337,7 @@
       const res = await fetch('/admin/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, department, content }),
+        body: JSON.stringify({ title, content, doc_type: docType }),
       });
 
       if (res.status === 401) {
@@ -348,6 +351,7 @@
       statusEl.textContent = `등록 완료 — ${data.chunk_count}개 청크로 인덱싱되었습니다.`;
 
       document.getElementById('title').value = '';
+      document.getElementById('doc-type').value = '';
       contentEl.value = '';
       document.getElementById('char-count').textContent = '0';
       document.getElementById('convert-badge').style.display = 'none';
@@ -374,7 +378,7 @@
       tbody.innerHTML = data.documents.map(doc => `
         <tr>
           <td>${doc.title}</td>
-          <td><span class="tag">${doc.department}</span></td>
+          <td>${doc.doc_type ? `<span class="tag">${doc.doc_type}</span>` : '-'}</td>
           <td class="center">${doc.chunk_count}</td>
           <td class="center">${doc.created_at ?? '-'}</td>
           <td class="center">

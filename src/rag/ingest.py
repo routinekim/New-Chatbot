@@ -10,10 +10,9 @@ splitter = RecursiveCharacterTextSplitter(
 )
 
 
-def ingest(title: str, department: str, content: str) -> list[Document]:
-    """텍스트를 청킹하고 메타데이터를 부착한 Document 리스트를 반환한다."""
-    chunks = splitter.create_documents(
-        texts=[content],
-        metadatas=[{"title": title, "department": department}],
-    )
+def ingest(title: str, content: str, doc_type: str | None = None) -> list[Document]:
+    meta: dict = {"title": title}
+    if doc_type:
+        meta["doc_type"] = doc_type
+    chunks = splitter.create_documents(texts=[content], metadatas=[meta])
     return chunks

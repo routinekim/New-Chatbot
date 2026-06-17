@@ -9,6 +9,8 @@ templates = Jinja2Templates(directory="templates")
 
 class QueryRequest(BaseModel):
     question: str
+    voice: bool = False
+    doc_type: str | None = None
 
 
 class QueryResponse(BaseModel):
@@ -24,5 +26,5 @@ async def index(request: Request):
 @router.post("/api/query", response_model=QueryResponse)
 async def query(req: QueryRequest):
     from src.rag.chain import run_rag
-    result = await run_rag(req.question)
+    result = await run_rag(req.question, voice=req.voice, doc_type=req.doc_type)
     return QueryResponse(**result)

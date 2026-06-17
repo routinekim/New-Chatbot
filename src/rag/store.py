@@ -53,7 +53,7 @@ class DocumentStore:
                 seen[doc_id] = {
                     "id": doc_id,
                     "title": doc.metadata.get("title", ""),
-                    "department": doc.metadata.get("department", ""),
+                    "doc_type": doc.metadata.get("doc_type", ""),
                     "chunk_count": 0,
                 }
             seen[doc_id]["chunk_count"] += 1
@@ -65,6 +65,10 @@ class DocumentStore:
             for doc in self._all_docs()
             if doc.metadata.get("doc_id") == doc_id
         ]
+
+    def search_with_l2(self, query: str, k: int = 10) -> list[tuple[Document, float]]:
+        """(doc, l2_distance) 반환. 낮을수록 유사."""
+        return self._chroma.similarity_search_with_score(query, k=k)
 
     def delete_document(self, doc_id: str) -> None:
         result = self._chroma.get()
